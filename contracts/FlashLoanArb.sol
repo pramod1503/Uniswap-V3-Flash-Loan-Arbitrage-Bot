@@ -83,9 +83,8 @@ contract FlashloanArb is IUniswapV3FlashCallback, Ownable, ReentrancyGuard {
     function _executeTrade(address tokenIn, uint256 amountIn, address[] memory path) internal {
         _ensureApprove(IERC20(tokenIn), routerTarget, amountIn);
 
-        IUniswapV2Router02(routerTarget).swapExactTokensForTokens(
-            amountIn, 0, path, address(this), block.timestamp + 300
-        );
+        IUniswapV2Router02(routerTarget)
+            .swapExactTokensForTokens(amountIn, 0, path, address(this), block.timestamp + 300);
     }
 
     function _ensureApprove(IERC20 token, address spender, uint256 amount) internal {

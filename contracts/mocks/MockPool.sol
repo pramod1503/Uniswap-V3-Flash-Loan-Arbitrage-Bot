@@ -49,7 +49,10 @@ contract MockPool {
         address[] calldata path,
         address to,
         uint256 /*deadline*/
-    ) external returns (uint256[] memory amounts) {
+    )
+        external
+        returns (uint256[] memory amounts)
+    {
         address tokenIn = path[0];
         address tokenOut = path[path.length - 1];
 

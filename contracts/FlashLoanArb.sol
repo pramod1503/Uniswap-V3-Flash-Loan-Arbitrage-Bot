@@ -11,12 +11,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IUniswapV2Router02 {
     function swapExactTokensForTokens(
-        uint amountIn,
-        uint amountOutMin,
+        uint256 amountIn,
+        uint256 amountOutMin,
         address[] calldata path,
         address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 }
 
 contract FlashloanArb is IUniswapV3FlashCallback, Ownable, ReentrancyGuard {
@@ -42,39 +42,27 @@ contract FlashloanArb is IUniswapV3FlashCallback, Ownable, ReentrancyGuard {
         routerTarget = _routerTarget;
     }
 
-    function requestFlashLoan(
-        address pool,
-        uint256 amount0,
-        uint256 amount1,
-        address[] calldata tradePath
-    ) external onlyOwner nonReentrant {
+    function requestFlashLoan(address pool, uint256 amount0, uint256 amount1, address[] calldata tradePath)
+        external
+        onlyOwner
+        nonReentrant
+    {
         if (amount0 == 0 && amount1 == 0) revert InvalidFlashLoan();
         if (pool == address(0)) revert InvalidFlashLoan();
 
-        bytes memory data = abi.encode(
-            FlashCallData({
-                amount0: amount0,
-                amount1: amount1,
-                player: msg.sender,
-                tradePath: tradePath
-            })
-        );
+        bytes memory data =
+            abi.encode(FlashCallData({amount0: amount0, amount1: amount1, player: msg.sender, tradePath: tradePath}));
 
         IUniswapV3Pool(pool).flash(address(this), amount0, amount1, data);
     }
 
-    function uniswapV3FlashCallback(
-        uint256 fee0,
-        uint256 fee1,
-        bytes calldata data
-    ) external override {
+    function uniswapV3FlashCallback(uint256 fee0, uint256 fee1, bytes calldata data) external override {
         FlashCallData memory decoded = abi.decode(data, (FlashCallData));
 
         _verifyCallback(msg.sender);
 
-        address borrowedToken = decoded.amount0 > 0
-            ? IUniswapV3Pool(msg.sender).token0()
-            : IUniswapV3Pool(msg.sender).token1();
+        address borrowedToken =
+            decoded.amount0 > 0 ? IUniswapV3Pool(msg.sender).token0() : IUniswapV3Pool(msg.sender).token1();
 
         uint256 borrowedAmount = decoded.amount0 > 0 ? decoded.amount0 : decoded.amount1;
         uint256 feeAmount = decoded.amount0 > 0 ? fee0 : fee1;
@@ -93,15 +81,10 @@ contract FlashloanArb is IUniswapV3FlashCallback, Ownable, ReentrancyGuard {
     }
 
     function _executeTrade(address tokenIn, uint256 amountIn, address[] memory path) internal {
-    
         _ensureApprove(IERC20(tokenIn), routerTarget, amountIn);
 
         IUniswapV2Router02(routerTarget).swapExactTokensForTokens(
-            amountIn,
-            0, 
-            path,
-            address(this),
-            block.timestamp + 300
+            amountIn, 0, path, address(this), block.timestamp + 300
         );
     }
 
@@ -119,13 +102,13 @@ contract FlashloanArb is IUniswapV3FlashCallback, Ownable, ReentrancyGuard {
         uint24 fee = IUniswapV3Pool(pool).fee();
 
         (address tokenA, address tokenB) = token0 < token1 ? (token0, token1) : (token1, token0);
-        
+
         address computedAddress = address(
             uint160(
                 uint256(
                     keccak256(
                         abi.encodePacked(
-                            hex'ff',
+                            hex"ff",
                             factoryV3,
                             keccak256(abi.encode(tokenA, tokenB, fee)),
                             bytes32(0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54)
@@ -138,7 +121,6 @@ contract FlashloanArb is IUniswapV3FlashCallback, Ownable, ReentrancyGuard {
         if (pool != computedAddress) revert UnauthorizedCallback();
     }
 
-    
     function withdrawToken(address token) external onlyOwner {
         uint256 balance = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransfer(msg.sender, balance);
